@@ -1,0 +1,171 @@
+---
+title: "ISEPAM V1"
+author: "Philippe MICHEL"
+thanks: "Travail de Hicham EL MASRI (Chirurgie digesitve)"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: lualatex
+    toc: yes
+    toc_depth: 3
+    number_sections: no
+    keep_tex: yes
+    df_print: kable
+    highlight: tango
+    citation_package: biblatex
+  html_document:
+    toc: yes
+    df_print: paged
+header-includes:
+- \usepackage[output-decimal-marker={,},per-mode = symbol,mode = text]{siunitx}
+- \usepackage[french]{varioref}
+documentclass: scrartcl
+mainfont: Faune
+mainfontoptions:
+- Ligatures = TeX
+- Ligatures = Common
+sansfont: Faune
+sansfontoptions:
+- Ligatures = TeX
+- Ligatures = Common
+monofont: Fira Mono
+monofontoptions: Numbers = Monospaced
+mathfontoptions: Numbers = Monospaced
+lof: yes
+lot: yes
+colorlinks: yes
+fontsize: 10pt
+papersize: a4
+lang: fr
+subtitle: Rappport Statistique
+cite-method: biblatex
+bibliography: stat.bib
+license: CC BY-SA
+---
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
+#knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+rm(list = ls())
+expx <- FALSE
+```
+
+```{r info}
+library(forcats)
+library(stringr)
+library(treemap)
+library(epiDisplay)
+library(factoextra)
+library(baseph)
+library(knitr)
+library(finalfit)
+library(Hmisc)
+library(tidyr)
+library(ggplot2)
+library(kableExtra)
+library(forestmodel)
+library(lubridate)
+library(dplyr)
+library(janitor)
+library(parameters)
+library(see)
+library(binom)
+library(questionr)
+library(readr)
+# sessionInfo()
+```
+
+```{r import}
+  tt <- read_csv(
+    "data/data_isepam.csv",
+    col_names = TRUE,
+    na = c("", "NA"),
+    lazy = FALSE,
+    show_col_types = FALSE
+  ) %>%
+    mutate_if(is.character, as.factor) %>%
+    janitor::clean_names()
+#    janitor::remove_constant() |>
+#   janitor::remove_empty()
+  names(tt) <- str_replace_all(names(tt), "_", ".")
+nomv <- names(tt)
+#
+expx = FALSE # N'exporte pas les tableaux en csv.
+```
+
+```{r forme}
+tt <- tt %>% 
+  mutate(asa = as.factor(asa)) %>% 
+  mutate(stade.t = as.factor(stade.t)) %>% 
+  mutate(type.resection = as.factor(type.resection)) %>% 
+  mutate(stade.n = as.factor(stade.n))
+# imc
+tt$imc <- bmiph(tt$imc,"eng")
+```
+
+## Description des données
+
+La base de données comprend  `r dim(tt)[1]` cas pour `r dim(tt)[2]`  variables. 
+
+```{r tabdemo}
+numv <- c(1:15,30)
+tab1ph(tt[,numv],nomv = nomv[numv], titre = "Données démographiques", export = expx)
+```
+
+
+```{r pyr, fig.cap="Pyramide des âges"}
+epiDisplay::pyramid(
+  age = tt$age,
+  sex = tt$sexe,
+  binwidth = 10,
+  col.gender = c("pink", "skyblue1"),
+  main = "Pyramide des âges",
+  printTable = FALSE
+)
+```
+
+```{r surf1, fig.cap = "Surface du psoas rapportée à la taille"}
+tt %>% 
+  ggplot() +
+  aes(x = 1, y = surface.1.taille) +
+  geom_violin(col = "skyblue1", fill = "skyblue1",alpha = 0.8) +
+  geom_boxplot(width = 0.2) +
+      labs(title = "Surface du psoas rapportée à la taille",
+         subtitle = "",
+         caption = "Surface du psoas rapportée à la taille",
+         y = "mm2/m2",
+         label = "pso1") +
+    theme_light() +
+    scale_fill_material() +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12),
+      axis.title.y = element_text(size = 12),
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.y = element_text(size = 12),
+      axis.text.x = element_blank(),
+      legend.position = "none"
+    )
+```
+
+## Critère principal
+
+Le critère principal est l'étude de la durée de séjour en fonction de la sarcopénie définie par 
+
+## Critères secondaires
+
+### CS 1
+aaa
+
+### CS 2
+bbb
+
+## Technique 
+
+**Petit paragraphe à ajouter en fin de “matériel & méthode”**
+
+Les données discrètes ont été décrites par leur fréquence exprimée en pourcentage avec son intervalle de confiance à 95 % et ont été comparées par le test exact de Fisher vu la faible effectif. Les intervalles de confiance n’ont été réalisés qu’après transformation angulaire. Les données numériques ont été décrites par leur moyenne (avec son intervalle de confiance à 95 % calculé par bootstrap) et l’écart-type. Les données continues ont été comparées par le test de Student après vérification de l’égalité des variances. L’analyse factorielle a été réalisée en analyse des correspondances multiples après imputation des données manquantes, possible ici en raison du faible nombre de celles-ci.
+Les statistiques ont été réalisées grâce au logiciel R[@rstat] avec en particulier les packages du Tidyverse[@tidy] & EpiDisplay[@rpid].
+
+# References

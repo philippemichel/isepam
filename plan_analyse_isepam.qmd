@@ -1,0 +1,79 @@
+---
+title: "ISEPAM"
+subtitle: "Plan d'analyse statistique"
+author: "Philippe MICHEL"
+date: "`r format(Sys.Date(),'%d %B %Y')`"
+format: pdf
+pdf-engine: lualatex
+keep-tex: true
+number-sections: true
+toc: false
+lof: false
+lot: false
+mainfont: Minion Pro
+mainfontoptions:
+  - Numbers=Proportional
+  - Ligatures=TeX
+  - Style=Alternate
+sansfont: Myriad Pro
+sansfontoptions:
+  - Ligatures=TeX
+fig-cap-location: bottom
+tbl-cap-location: top
+class: scrartcl
+classoption: [french]
+lang: fr-FR
+papersize: a4paper
+editor: source
+cite-method: biblatex
+bibliography: stat.bib
+license: "CC BY-SA"
+---
+
+
+Ce document ne concerne que l'analyse statistique des données.
+
+Le risque $\alpha$ retenu sera de 0,05 & la puissance de 0,8. Il s'agit d'une étude rétrospective monocentrique.
+
+## Description de la population
+
+### Analyse simple
+
+Un tableau descriptif simple sera réalisé. Des graphiques de distribution pourront être réalisés pour les items les plus importants.
+
+
+## Objectif principal
+
+Le critère principal est la durée de séjour post-opératoire. La variable principale est la sarcopénie définie par 'étude de la densité musculaire au niveau L3. Les images seront lues & les classification faites par deux personnes. Les deux groupes seront comparés par l'analyse des courbes de survie sur la durée d'hospitalisation (test de Log-Rank). La comparaison simple des durées de séjour sera réalisé par un test de Student (graphique boxplot).
+
+Une recherche de facteurs favorisant ou confondants sera réalisée en comparant les durées d'hospitalisation & présentée sur trois tableaux : données démographiques, de l'intervention, de la tumeur.
+
+Une étude de la cohérence des lectures des scanners par les deux médecins sera faite par un test de Kappa.
+
+### Analyse par régression
+
+Une analyse multivariée par régression logistique sera réalisée en y incorporant les toutes les variables ayant une p-value \< 0,20 sur l'analyse monovariée.
+
+Une analyse multivariée des courbes de survie (modèle de Cox) sera réalisée sur les mêmes critères.
+
+## Objectifs secondaires
+
+### Mesure du taux de complications selon le score Clavien Dindo
+
+Ce score en trois classes sera croisé avec la sarcopénie (test du $\Chi^2$).
+
+### Ré-hospitalisation dans les 30 jours suivant l’opération
+Comparaison du nombre de jours d'hospitalisation sur les trente jours (test de Student). Graphique en box-plot.
+
+### Prise en charge en SSR 
+
+ - Existence de transfert en SSR : calcul de l'Odd-Ratio & test du $\Chi^2$.  Graphique.
+ - Nombre de jours en SSR : test de Student. Graphique en box-plot.
+
+
+## Technique {.appendix}
+
+L'analyse statistique sera réalisée avec le logiciel **R**[@rstat] & divers packages en particulier `tidyverse` [@tidy], `FactoMineR` [@facto] & `epiDisplay` [@epid].
+
+
+
