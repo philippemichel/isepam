@@ -1,7 +1,7 @@
 # ISEPAM
 **Sarcopenie & durée de séjour** 
 
-## Objectif proncipal
+## Objectif principal
 Comparaison de la durée moyenne de séjour post-opératoire entre des patients
 sarcopéniques vs des patients non sarcopéniques
 
