@@ -32,6 +32,6 @@ data
 *.pdf
 *.log
 *.Rproj
-
 *test*
 Doc
+stat.bib

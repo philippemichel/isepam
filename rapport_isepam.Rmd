@@ -72,6 +72,7 @@ library(see)
 library(binom)
 library(questionr)
 library(readr)
+library(gtsummary)
 # sessionInfo()
 ```
 
@@ -95,23 +96,28 @@ expx = FALSE # N'exporte pas les tableaux en csv.
 
 ```{r forme}
 tt <- tt %>% 
-  mutate(asa = as.factor(asa)) %>% 
-  mutate(stade.t = as.factor(stade.t)) %>% 
-  mutate(type.resection = as.factor(type.resection)) %>% 
-  mutate(stade.n = as.factor(stade.n))
+  mutate(asa = as.factor(asa))
+tt$sarcopenie <- as.factor(ifelse((tt$sexe == "H" & tt$surface.1.taille < 524)|(tt$sexe == "F" & tt$surface.1.taille < 385),"sarcopénique", "non sarcopénique"))
 # imc
 tt$imc <- bmiph(tt$imc,"eng")
 ```
+
+
+
+
 
 ## Description des données
 
 La base de données comprend  `r dim(tt)[1]` cas pour `r dim(tt)[2]`  variables. 
 
+ Ce travail préliminaire ne prend en compte que les mesures réalisées par l'examinateur 1.
+
 ```{r tabdemo}
-numv <- c(1:15,30)
-tab1ph(tt[,numv],nomv = nomv[numv], titre = "Données démographiques", export = expx)
+numv <- c(1:15,30,31)
+tabcph(tt[,numv], sarcopenie, nomv = nomv[numv], titre = "Données démographiques", export = expx)
 ```
 
+Comme on pouvait s'y attendre les patients sarcopéniques sont différents des non sarcopéniques sur le poids, l'IMC ou l'albuminémie mais pas sur l'âge, le sexe, les données carcinologiques ou opératoires. Comparer les deux groupes a donc un sens.
 
 ```{r pyr, fig.cap="Pyramide des âges"}
 epiDisplay::pyramid(
@@ -151,7 +157,58 @@ tt %>%
 
 ## Critère principal
 
-Le critère principal est l'étude de la durée de séjour en fonction de la sarcopénie définie par 
+```{r}
+npat <- nrow(tt)
+nsarco <- table(tt$sarcopenie)[[2]]
+psarco <- round(100*nsarco/npat,1)
+bsarco <- paste0(nsarco," (",psarco,"%)")
+```
+
+
+Le critère principal est l'étude de la durée de séjour en fonction de la sarcopénie définie selon les normes de l'HAS. L'échantillon comporte `r bsarco` patients sarcopéniques.
+
+```{r princi1}
+v1 <- var(subset(tt$duree.de.sejour.jour, tt$sarcopenie == "non sarcopénique"))
+v2 <- var(subset(tt$duree.de.sejour.jour, tt$sarcopenie == "sarcopénique"))
+zz <- wilcox.test(tt$duree.de.sejour.jour~tt$sarcopenie)
+bp1 <- beaup(zz$p.value)
+```
+Les variances des deux groupes sont trop différentes pour utiliser le test de Student. On utilise donc un test non paramétrique de Wilcoxon-Mann-Whitney.
+
+La différence entre les deux groupes n'est pas significative (`r bp1`). Il est probable que la petite taille de l'échantillon soit en cause.
+
+```{r gprinci1 ,fig.cap = "Durée de séjour selon la présence d'une sarcopénie"}
+tt %>% 
+  ggplot() + 
+  aes(x = sarcopenie, y = duree.de.sejour.jour, fill = sarcopenie) +
+  geom_violin() +
+  geom_boxplot(width = 0.2, fill = "gray") +
+      labs(title = "Durée de séjour selon la présence d'une sarcopénie",
+         subtitle = "",
+         caption = "Durée de séjour selon la présence d'une sarcopénie",
+         y = "jours",
+         label = "princi1") +
+    theme_light() +
+    scale_fill_material() +
+    theme(
+      plot.title = element_text(size = 16, face = "bold"),
+      plot.subtitle = element_text(size = 12),
+      axis.title.y = element_text(size = 12),
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.y = element_text(size = 12),
+      axis.text.x = element_text(size = 12),
+      legend.position = "none"
+    )
+```
+
+### Régession linéaire
+
+```{r p1reg}
+ll <- lm(duree.de.sejour.jour~sarcopenie + age + urgence + stade.t, data = tt)
+tbl_regression(ll)
+```
+
 
 ## Critères secondaires
 
@@ -165,7 +222,7 @@ bbb
 
 **Petit paragraphe à ajouter en fin de “matériel & méthode”**
 
-Les données discrètes ont été décrites par leur fréquence exprimée en pourcentage avec son intervalle de confiance à 95 % et ont été comparées par le test exact de Fisher vu la faible effectif. Les intervalles de confiance n’ont été réalisés qu’après transformation angulaire. Les données numériques ont été décrites par leur moyenne (avec son intervalle de confiance à 95 % calculé par bootstrap) et l’écart-type. Les données continues ont été comparées par le test de Student après vérification de l’égalité des variances. L’analyse factorielle a été réalisée en analyse des correspondances multiples après imputation des données manquantes, possible ici en raison du faible nombre de celles-ci.
+Les données discrètes ont été décrites par leur fréquence exprimée en pourcentage avec son intervalle de confiance à 95 % et ont été comparées par le test exact de Fisher vu la faible effectif. Les intervalles de confiance n’ont été réalisés qu’après transformation angulaire. Les données numériques ont été décrites par leur moyenne (avec son intervalle de confiance à 95 % calculé par bootstrap) et l’écart-type. Les données continues ont été comparées par le test de Student après vérification de l’égalité des variances.
 Les statistiques ont été réalisées grâce au logiciel R[@rstat] avec en particulier les packages du Tidyverse[@tidy] & EpiDisplay[@rpid].
 
 # References
