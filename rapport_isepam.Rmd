@@ -1,7 +1,6 @@
 ---
-title: "ISEPAM V1"
+title: "ISEPAM"
 author: "Philippe MICHEL"
-thanks: "Travail de Hicham EL MASRI (Chirurgie digesitve)"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
@@ -13,9 +12,14 @@ output:
     df_print: kable
     highlight: tango
     citation_package: biblatex
+  word_document:
+    toc: yes
+    toc_depth: '3'
   html_document:
     toc: yes
     df_print: paged
+subtitle: Rapport statistique - V1
+thanks: Travail de Hicham EL MASRI (Chirurgie digesitve)
 header-includes:
 - \usepackage[output-decimal-marker={,},per-mode = symbol,mode = text]{siunitx}
 - \usepackage[french]{varioref}
@@ -37,17 +41,17 @@ colorlinks: yes
 fontsize: 10pt
 papersize: a4
 lang: fr
-subtitle: Rappport Statistique
 cite-method: biblatex
 bibliography: stat.bib
 license: CC BY-SA
+always_allow_html: true
 ---
 
 ```{r setup, include= FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE)
 #knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 rm(list = ls())
-expx <- FALSE
+expx <- TRUE
 ```
 
 ```{r info}
@@ -100,6 +104,17 @@ tt <- tt %>%
 tt$sarcopenie <- as.factor(ifelse((tt$sexe == "H" & tt$surface.1.taille < 524)|(tt$sexe == "F" & tt$surface.1.taille < 385),"sarcopénique", "non sarcopénique"))
 # imc
 tt$imc <- bmiph(tt$imc,"eng")
+#
+tt$clavien.dindo.cut <- tt$clavien.dindo %>%
+  fct_recode(
+    "Pas de complication" = "0",
+    "Pas de complication" = "1",
+    "Complication" = "2",
+    "Complication significative" = "3a",
+    "Complication significative" = "3b",
+    "Complication significative" = "4",
+    "Complication significative" = "5"
+  )
 ```
 
 
@@ -114,7 +129,7 @@ La base de données comprend  `r dim(tt)[1]` cas pour `r dim(tt)[2]`  variables.
 
 ```{r tabdemo}
 numv <- c(1:15,30,31)
-tabcph(tt[,numv], sarcopenie, nomv = nomv[numv], titre = "Données démographiques", export = expx)
+#tabcph(tt[,numv], sarcopenie, nomv = nomv[numv], titre = "Données démographiques", export = TRUE)
 ```
 
 Comme on pouvait s'y attendre les patients sarcopéniques sont différents des non sarcopéniques sur le poids, l'IMC ou l'albuminémie mais pas sur l'âge, le sexe, les données carcinologiques ou opératoires. Comparer les deux groupes a donc un sens.
@@ -178,51 +193,137 @@ Les variances des deux groupes sont trop différentes pour utiliser le test de S
 La différence entre les deux groupes n'est pas significative (`r bp1`). Il est probable que la petite taille de l'échantillon soit en cause.
 
 ```{r gprinci1 ,fig.cap = "Durée de séjour selon la présence d'une sarcopénie"}
-tt %>% 
-  ggplot() + 
+tt %>%
+  ggplot() +
   aes(x = sarcopenie, y = duree.de.sejour.jour, fill = sarcopenie) +
   geom_violin() +
   geom_boxplot(width = 0.2, fill = "gray") +
-      labs(title = "Durée de séjour selon la présence d'une sarcopénie",
-         subtitle = "",
-         caption = "Durée de séjour selon la présence d'une sarcopénie",
-         y = "jours",
-         label = "princi1") +
-    theme_light() +
-    scale_fill_material() +
-    theme(
-      plot.title = element_text(size = 16, face = "bold"),
-      plot.subtitle = element_text(size = 12),
-      axis.title.y = element_text(size = 12),
-      legend.title = element_blank(),
-      axis.title.x = element_blank(),
-      axis.text.y = element_text(size = 12),
-      axis.text.x = element_text(size = 12),
-      legend.position = "none"
-    )
+  labs(
+    title = "Durée de séjour selon la présence d'une sarcopénie",
+    subtitle = bp1,
+    caption = "Durée de séjour selon la présence d'une sarcopénie",
+    y = "jours",
+    label = "princi1"
+  ) +
+  theme_light() +
+  scale_fill_material() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    legend.title = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    axis.text.x = element_text(size = 12),
+    legend.position = "none"
+  )
 ```
 
 ### Régession linéaire
 
 ```{r p1reg}
-ll <- lm(duree.de.sejour.jour~sarcopenie + age + urgence + stade.t, data = tt)
-tbl_regression(ll)
+ll <-
+  lm(duree.de.sejour.jour ~ sarcopenie + age + urgence + stade.t, data = tt)
+tbl_regression(ll) %>%
+  bold_labels() %>%
+  modify_caption("Durée de séjour & facteurs de risque - régression linéaire") %>%
+  as_kable_extra() %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header", "hold_position"),
+    bootstrap_options = "striped",
+    full_width = FALSE,
+    position = "center",
+    fixed_thead = TRUE
+  )
 ```
 
 
 ## Critères secondaires
 
-### CS 1
-aaa
+### Complications
 
-### CS 2
-bbb
+Les complications sont exprimées par  le score Clavien Dindo ramené à trois  niveaux.
+
+```{r cs1}
+zz <- fisher.test(tt$sarcopenie, tt$clavien.dindo.cut)
+zz <- beaup(zz$p.value)
+tbl_cross(tt, sarcopenie, clavien.dindo.cut , percent = "col") %>%
+  add_p() %>%
+  bold_labels() %>%
+  modify_caption("Complications & sarcopénie") %>%
+  as_kable_extra() %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header", "hold_position"),
+    bootstrap_options = "striped",
+    full_width = FALSE,
+    position = "center",
+    fixed_thead = TRUE
+  )
+```
+La sarcopénie ne semble pas influer sur le taux de complication (`r zz`).
+
+
+```{r cs1g, , fig.cap="Taux de complication vs présence d'une sarcopénie"}
+bardeuxph(tt,clavien.dindo.cut,sarcopenie,titre = "Taux de complication vs présence d'une sarcopénie")
+```
+
+
+### Réhospitalisations
+
+```{r cs2}
+zz <- fisher.test(tt$sarcopenie, tt$rehospitalisation)
+zz <- beaup(zz$p.value)
+tbl_cross(tt, sarcopenie, rehospitalisation , percent = "col") %>%
+  add_p() %>%
+  bold_labels() %>%
+  modify_caption("Réhospitalisations  & sarcopénie") %>%
+  as_kable_extra() %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header", "hold_position"),
+    bootstrap_options = "striped",
+    full_width = FALSE,
+    position = "center",
+    fixed_thead = TRUE
+  )
+```
+La sarcopénie ne semble pas influer sur le taux de réhospitalsation (`r zz`).
+
+
+```{r cs2g, , fig.cap="Réhospitalisation vs présence d'une sarcopénie"}
+barouiph(tt$rehospitalisation,tt$sarcopenie,oui = "Oui" , titre = "Réhospitalisation vs présence d'une sarcopénie", stitre = zz)
+```
+
+### Séjour en SSR
+
+```{r cs3}
+zz <- fisher.test(tt$sarcopenie, tt$ssr)
+zz <- beaup(zz$p.value)
+tbl_cross(tt, sarcopenie, ssr, percent = "col") %>%
+  add_p() %>%
+  bold_labels() %>%
+  modify_caption("Transfert en SSR  & sarcopénie") %>%
+  as_kable_extra() %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header", "hold_position"),
+    bootstrap_options = "striped",
+    full_width = FALSE,
+    position = "center",
+    fixed_thead = TRUE
+  )
+```
+Les patients sarcopéniques semblent être pus souvent hospitalisés en SSR (`r zz`).
+
+
+```{r cs3g, , fig.cap="SSR vs présence d'une sarcopénie"}
+barouiph(tt$ssr,tt$sarcopenie,oui = "SSR" , titre = "SSR vs présence d'une sarcopénie", stitre = zz)
+```
 
 ## Technique 
 
 **Petit paragraphe à ajouter en fin de “matériel & méthode”**
 
-Les données discrètes ont été décrites par leur fréquence exprimée en pourcentage avec son intervalle de confiance à 95 % et ont été comparées par le test exact de Fisher vu la faible effectif. Les intervalles de confiance n’ont été réalisés qu’après transformation angulaire. Les données numériques ont été décrites par leur moyenne (avec son intervalle de confiance à 95 % calculé par bootstrap) et l’écart-type. Les données continues ont été comparées par le test de Student après vérification de l’égalité des variances.
-Les statistiques ont été réalisées grâce au logiciel R[@rstat] avec en particulier les packages du Tidyverse[@tidy] & EpiDisplay[@rpid].
+Les données discrètes ont été décrites par leur fréquence exprimée en pourcentage avec son intervalle de confiance à 95 % et ont été comparées par le test exact de Fisher vu la faible effectif. Les intervalles de confiance n’ont été réalisés qu’après transformation angulaire. Les données numériques ont été décrites par leur moyenne (avec son intervalle de confiance à 95 % calculé par bootstrap) et l’écart-type. Les données continues ont été comparées par le test de Wilcoxon-Mann-Whitney. La régression linéaire a pris en compte la sarcopénie & toutes les variables ayant un p < 25 %. Un ajustement en step-by-step descendant a ensuite été réalisé.
 
-# References
+Les statistiques ont été réalisées grâce au logiciel R[@rstat] avec en particulier les packages du Tidyverse[@tidy] & EpiDisplay[@epid].
+
+### Bibliographie

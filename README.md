@@ -17,3 +17,5 @@ si supérieure ou égale à 3).)
 
 ## Rapport statistique
 Première version (descriptif) le 16/05/22
+Critère principal le 17/05/22
+Version provisoirement finale 17/05/2022 

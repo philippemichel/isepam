@@ -32,6 +32,10 @@ data
 *.pdf
 *.log
 *.Rproj
+*.xlsx
+*.csv
+*.doc*
 *test*
 Doc
 stat.bib
+rapport_isepam.Rmd
