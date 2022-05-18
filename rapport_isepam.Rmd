@@ -3,6 +3,12 @@ title: "ISEPAM"
 author: "Philippe MICHEL"
 date: "`r Sys.Date()`"
 output:
+  html_document:
+    toc: yes
+    df_print: paged
+  word_document:
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     latex_engine: lualatex
     toc: yes
@@ -12,12 +18,6 @@ output:
     df_print: kable
     highlight: tango
     citation_package: biblatex
-  word_document:
-    toc: yes
-    toc_depth: '3'
-  html_document:
-    toc: yes
-    df_print: paged
 subtitle: Rapport statistique - V1
 thanks: Travail de Hicham EL MASRI (Chirurgie digesitve)
 header-includes:
@@ -76,11 +76,12 @@ library(see)
 library(binom)
 library(questionr)
 library(readr)
+library(DescTools)
 library(gtsummary)
 # sessionInfo()
 ```
 
-```{r import}
+```{r import_tt}
   tt <- read_csv(
     "data/data_isepam.csv",
     col_names = TRUE,
@@ -98,10 +99,11 @@ nomv <- names(tt)
 expx = FALSE # N'exporte pas les tableaux en csv.
 ```
 
-```{r forme}
+```{r forme_tt}
 tt <- tt %>% 
   mutate(asa = as.factor(asa))
-tt$sarcopenie <- as.factor(ifelse((tt$sexe == "H" & tt$surface.1.taille < 524)|(tt$sexe == "F" & tt$surface.1.taille < 385),"sarcopénique", "non sarcopénique"))
+tt$examinateur.1 <- as.factor(ifelse((tt$sexe == "H" & tt$surface.1.taille < 524)|(tt$sexe == "F" & tt$surface.1.taille < 385),"sarcopénique", "non sarcopénique"))
+tt$examinateur.2 <- as.factor(ifelse((tt$sexe == "H" & tt$surface.2.taille < 524)|(tt$sexe == "F" & tt$surface.2.taille < 385),"sarcopénique", "non sarcopénique"))
 # imc
 tt$imc <- bmiph(tt$imc,"eng")
 #
@@ -117,6 +119,42 @@ tt$clavien.dindo.cut <- tt$clavien.dindo %>%
   )
 ```
 
+```{r import_tt2}
+  tt2 <- read_csv(
+    "data/data_isepam2.csv",
+    col_names = TRUE,
+    na = c("", "NA"),
+    lazy = FALSE,
+    show_col_types = FALSE
+  ) %>%
+    mutate_if(is.character, as.factor) %>%
+    janitor::clean_names()
+#    janitor::remove_constant() |>
+#   janitor::remove_empty()
+  names(tt2) <- str_replace_all(names(tt2), "_", ".")
+nomv2 <- names(tt2)
+#
+expx = FALSE # N'exporte pas les tableaux en csv.
+```
+
+```{r forme_tt2}
+tt2 <- tt2 %>% 
+  mutate(asa = as.factor(asa))
+tt2$sarcopenie <- as.factor(ifelse((tt2$sexe == "H" & tt2$surface.taille < 524)|(tt2$sexe == "F" & tt2$surface.taille < 385),"sarcopénique", "non sarcopénique"))
+# imc
+tt2$imc <- bmiph(tt2$imc,"eng")
+#
+tt2$clavien.dindo.cut <- tt2$clavien.dindo %>%
+  fct_recode(
+    "Pas de complication" = "0",
+    "Pas de complication" = "1",
+    "Complication" = "2",
+    "Complication significative" = "3a",
+    "Complication significative" = "3b",
+    "Complication significative" = "4",
+    "Complication significative" = "5"
+  )
+```
 
 
 
@@ -170,37 +208,94 @@ tt %>%
     )
 ```
 
-## Critère principal
+### Deux examinateurs
 
-```{r}
-npat <- nrow(tt)
-nsarco <- table(tt$sarcopenie)[[2]]
-psarco <- round(100*nsarco/npat,1)
-bsarco <- paste0(nsarco," (",psarco,"%)")
+La concordance entre les deux examinateurs n'est pas parfaite. 
+
+```{r corexa, fig.cap = "Mesure de la surface du psoas par les deux examinateurs"}
+tt %>% 
+  ggplot() +
+  aes(x = surface.1.taille, y = surface.2.taille) +
+  geom_point() +
+  geom_abline() +
+  labs(title = "Mesure de la surface du psoas par les deux examinateurs",
+       subtitle = "",
+       caption = "Mesure de la surface du psoas par les deux examinateurs",
+       x = "Examinateur 1",
+       y = "Examinateur 2",
+       label = "cor1") +
+  theme_light() +
+  scale_fill_material() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title.x = element_text(size = 12),
+    axis.text.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    legend.position = "none"
+  )
+```
+
+```{r tzbexa}
+tbl_cross(tt, examinateur.1, examinateur.2) %>%
+  add_p() %>%
+  bold_labels() %>%
+  modify_caption("Sarcopénie concordance entre les examinateurs") %>%
+  as_kable_extra() %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header", "hold_position"),
+    bootstrap_options = "striped",
+    full_width = FALSE,
+    position = "center",
+    fixed_thead = TRUE
+  )
 ```
 
 
-Le critère principal est l'étude de la durée de séjour en fonction de la sarcopénie définie selon les normes de l'HAS. L'échantillon comporte `r bsarco` patients sarcopéniques.
+
+## Critère principal
+
+```{r exa1}
+npat <- nrow(tt)
+nsarco <- table(tt$examinateur.1)[[2]]
+psarco <- round(100*nsarco/npat,1)
+bsarco1 <- paste0(nsarco," (",psarco,"%)")
+
+npat <- nrow(tt)
+nsarco <- table(tt$examinateur.2)[[2]]
+psarco <- round(100*nsarco/npat,1)
+bsarco2 <- paste0(nsarco," (",psarco,"%)")
+```
+
+
+Le critère principal est l'étude de la durée de séjour en fonction de la sarcopénie définie selon les normes de l'HAS. L'échantillon comporte `r bsarco1` patients sarcopéniques pour l'examinateur 1 & r bsarco2` pour l'examinateur 2.
 
 ```{r princi1}
-v1 <- var(subset(tt$duree.de.sejour.jour, tt$sarcopenie == "non sarcopénique"))
-v2 <- var(subset(tt$duree.de.sejour.jour, tt$sarcopenie == "sarcopénique"))
-zz <- wilcox.test(tt$duree.de.sejour.jour~tt$sarcopenie)
+v1 <- var(subset(tt$duree.de.sejour.jour, tt$examinateur.1 == "non sarcopénique"))
+v2 <- var(subset(tt$duree.de.sejour.jour, tt$examinateur.1 == "sarcopénique"))
+zz <- wilcox.test(tt$duree.de.sejour.jour~tt$examinateur.1)
 bp1 <- beaup(zz$p.value)
+
+v1 <- var(subset(tt$duree.de.sejour.jour, tt$examinateur.2 == "non sarcopénique"))
+v2 <- var(subset(tt$duree.de.sejour.jour, tt$examinateur.2 == "sarcopénique"))
+zz <- wilcox.test(tt$duree.de.sejour.jour~tt$examinateur.2)
+bp2 <- beaup(zz$p.value)
+
 ```
 Les variances des deux groupes sont trop différentes pour utiliser le test de Student. On utilise donc un test non paramétrique de Wilcoxon-Mann-Whitney.
 
-La différence entre les deux groupes n'est pas significative (`r bp1`). Il est probable que la petite taille de l'échantillon soit en cause.
+La différence entre les deux groupes n'est pas significative (eaxmianteur 1 :`r bp1`, examinateur 2 : `r bp2`). Il est probable que la petite taille de l'échantillon soit en cause.
 
-```{r gprinci1 ,fig.cap = "Durée de séjour selon la présence d'une sarcopénie"}
+```{r gprinci1 ,fig.cap = "Durée de séjour selon la présence d'une sarcopénie -lecteur 1"}
 tt %>%
   ggplot() +
-  aes(x = sarcopenie, y = duree.de.sejour.jour, fill = sarcopenie) +
+  aes(x = examinateur.1, y = duree.de.sejour.jour, fill = examinateur.1) +
   geom_violin() +
-  geom_boxplot(width = 0.2, fill = "gray") +
+  geom_boxplot(width = 0.2, fill = "grey") +
   labs(
     title = "Durée de séjour selon la présence d'une sarcopénie",
-    subtitle = bp1,
+    subtitle = paste0(bp1, "(examinateur 1)"),
     caption = "Durée de séjour selon la présence d'une sarcopénie",
     y = "jours",
     label = "princi1"
@@ -221,9 +316,11 @@ tt %>%
 
 ### Régession linéaire
 
+Calcul fai pour l'examinateur 1.
+
 ```{r p1reg}
 ll <-
-  lm(duree.de.sejour.jour ~ sarcopenie + age + urgence + stade.t, data = tt)
+  lm(duree.de.sejour.jour ~ sarcopenie + age + urgence + stade.t, data = tt2)
 tbl_regression(ll) %>%
   bold_labels() %>%
   modify_caption("Durée de séjour & facteurs de risque - régression linéaire") %>%
@@ -239,15 +336,17 @@ tbl_regression(ll) %>%
 
 
 ## Critères secondaires
-
+ 
+Tous les calculs sont présentés pour l'examinateur 1. 
+ 
 ### Complications
 
 Les complications sont exprimées par  le score Clavien Dindo ramené à trois  niveaux.
 
 ```{r cs1}
-zz <- fisher.test(tt$sarcopenie, tt$clavien.dindo.cut)
+zz <- fisher.test(tt$examinateur.1, tt$clavien.dindo.cut)
 zz <- beaup(zz$p.value)
-tbl_cross(tt, sarcopenie, clavien.dindo.cut , percent = "col") %>%
+tbl_cross(tt, examinateur.1, clavien.dindo.cut , percent = "col") %>%
   add_p() %>%
   bold_labels() %>%
   modify_caption("Complications & sarcopénie") %>%
@@ -264,16 +363,16 @@ La sarcopénie ne semble pas influer sur le taux de complication (`r zz`).
 
 
 ```{r cs1g, , fig.cap="Taux de complication vs présence d'une sarcopénie"}
-bardeuxph(tt,clavien.dindo.cut,sarcopenie,titre = "Taux de complication vs présence d'une sarcopénie")
+bardeuxph(tt,clavien.dindo.cut,examinateur.1,titre = "Taux de complication vs présence d'une sarcopénie")
 ```
 
 
 ### Réhospitalisations
 
 ```{r cs2}
-zz <- fisher.test(tt$sarcopenie, tt$rehospitalisation)
+zz <- fisher.test(tt$examinateur.1, tt$rehospitalisation)
 zz <- beaup(zz$p.value)
-tbl_cross(tt, sarcopenie, rehospitalisation , percent = "col") %>%
+tbl_cross(tt, examinateur.1, rehospitalisation , percent = "col") %>%
   add_p() %>%
   bold_labels() %>%
   modify_caption("Réhospitalisations  & sarcopénie") %>%
@@ -290,15 +389,15 @@ La sarcopénie ne semble pas influer sur le taux de réhospitalsation (`r zz`).
 
 
 ```{r cs2g, , fig.cap="Réhospitalisation vs présence d'une sarcopénie"}
-barouiph(tt$rehospitalisation,tt$sarcopenie,oui = "Oui" , titre = "Réhospitalisation vs présence d'une sarcopénie", stitre = zz)
+barouiph(tt$rehospitalisation,tt$examinateur.1,oui = "Oui" , titre = "Réhospitalisation vs présence d'une sarcopénie", stitre = zz)
 ```
 
 ### Séjour en SSR
 
 ```{r cs3}
-zz <- fisher.test(tt$sarcopenie, tt$ssr)
+zz <- fisher.test(tt$examinateur.1, tt$ssr)
 zz <- beaup(zz$p.value)
-tbl_cross(tt, sarcopenie, ssr, percent = "col") %>%
+tbl_cross(tt, examinateur.1, ssr, percent = "col") %>%
   add_p() %>%
   bold_labels() %>%
   modify_caption("Transfert en SSR  & sarcopénie") %>%
@@ -315,7 +414,7 @@ Les patients sarcopéniques semblent être pus souvent hospitalisés en SSR (`r 
 
 
 ```{r cs3g, , fig.cap="SSR vs présence d'une sarcopénie"}
-barouiph(tt$ssr,tt$sarcopenie,oui = "SSR" , titre = "SSR vs présence d'une sarcopénie", stitre = zz)
+barouiph(tt$ssr,tt$examinateur.1,oui = "SSR" , titre = "SSR vs présence d'une sarcopénie", stitre = zz)
 ```
 
 ## Technique 
