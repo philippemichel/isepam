@@ -3,12 +3,6 @@ title: "ISEPAM"
 author: "Philippe MICHEL"
 date: "`r Sys.Date()`"
 output:
-  html_document:
-    toc: yes
-    df_print: paged
-  word_document:
-    toc: yes
-    toc_depth: '3'
   pdf_document:
     latex_engine: lualatex
     toc: yes
@@ -18,6 +12,12 @@ output:
     df_print: kable
     highlight: tango
     citation_package: biblatex
+  word_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    toc: yes
+    df_print: paged
 subtitle: Rapport statistique - V1
 thanks: Travail de Hicham EL MASRI (Chirurgie digesitve)
 header-includes:
@@ -78,34 +78,53 @@ library(questionr)
 library(readr)
 library(DescTools)
 library(gtsummary)
+library(ggsci)
 # sessionInfo()
 ```
 
 ```{r import_tt}
-  tt <- read_csv(
-    "data/data_isepam.csv",
-    col_names = TRUE,
-    na = c("", "NA"),
-    lazy = FALSE,
-    show_col_types = FALSE
-  ) %>%
-    mutate_if(is.character, as.factor) %>%
-    janitor::clean_names()
+tt <- read_csv(
+  "data/data_isepam.csv",
+  col_names = TRUE,
+  na = c("", "NA"),
+  lazy = FALSE,
+  show_col_types = FALSE
+) %>%
+  mutate_if(is.character, as.factor) %>%
+  janitor::clean_names()
 #    janitor::remove_constant() |>
 #   janitor::remove_empty()
-  names(tt) <- str_replace_all(names(tt), "_", ".")
+names(tt) <- str_replace_all(names(tt), "_", ".")
 nomv <- names(tt)
 #
 expx = FALSE # N'exporte pas les tableaux en csv.
 ```
 
 ```{r forme_tt}
-tt <- tt %>% 
+tt <- tt %>%
   mutate(asa = as.factor(asa))
-tt$examinateur.1 <- as.factor(ifelse((tt$sexe == "H" & tt$surface.1.taille < 524)|(tt$sexe == "F" & tt$surface.1.taille < 385),"sarcopénique", "non sarcopénique"))
-tt$examinateur.2 <- as.factor(ifelse((tt$sexe == "H" & tt$surface.2.taille < 524)|(tt$sexe == "F" & tt$surface.2.taille < 385),"sarcopénique", "non sarcopénique"))
+tt$examinateur.1 <-
+  as.factor(ifelse((tt$sexe == "H" &
+                    tt$surface.1.taille < 524) |
+                    (tt$sexe == "F" &
+                        tt$surface.1.taille < 385),
+                   "sarcopénique",
+                   "non sarcopénique"
+  ))
+tt$examinateur.2 <-
+  as.factor(ifelse((tt$sexe == "H" &
+                      tt$surface.2.taille < 524) |
+                     (tt$sexe == "F" &
+                        tt$surface.2.taille < 385),
+                   "sarcopénique",
+                   "non sarcopénique"
+  ))
+tt$concordance.lectures <-
+  ifelse(tt$examinateur.1 == tt$examinateur.2,
+         "Concordance",
+         "non concordance")
 # imc
-tt$imc <- bmiph(tt$imc,"eng")
+tt$imc <- bmiph(tt$imc, "eng")
 #
 tt$clavien.dindo.cut <- tt$clavien.dindo %>%
   fct_recode(
@@ -120,29 +139,34 @@ tt$clavien.dindo.cut <- tt$clavien.dindo %>%
 ```
 
 ```{r import_tt2}
-  tt2 <- read_csv(
-    "data/data_isepam2.csv",
-    col_names = TRUE,
-    na = c("", "NA"),
-    lazy = FALSE,
-    show_col_types = FALSE
-  ) %>%
-    mutate_if(is.character, as.factor) %>%
-    janitor::clean_names()
+tt2 <- read_csv(
+  "data/data_isepam2.csv",
+  col_names = TRUE,
+  na = c("", "NA"),
+  lazy = FALSE,
+  show_col_types = FALSE
+) %>%
+  mutate_if(is.character, as.factor) %>%
+  janitor::clean_names()
 #    janitor::remove_constant() |>
 #   janitor::remove_empty()
-  names(tt2) <- str_replace_all(names(tt2), "_", ".")
+names(tt2) <- str_replace_all(names(tt2), "_", ".")
 nomv2 <- names(tt2)
-#
-expx = FALSE # N'exporte pas les tableaux en csv.
 ```
 
 ```{r forme_tt2}
-tt2 <- tt2 %>% 
+tt2 <- tt2 %>%
   mutate(asa = as.factor(asa))
-tt2$sarcopenie <- as.factor(ifelse((tt2$sexe == "H" & tt2$surface.taille < 524)|(tt2$sexe == "F" & tt2$surface.taille < 385),"sarcopénique", "non sarcopénique"))
+tt2$sarcopenie <-
+  as.factor(ifelse((tt2$sexe == "H" &
+                      tt2$surface.taille < 524) |
+                     (tt2$sexe == "F" &
+                        tt2$surface.taille < 385),
+                   "sarcopénique",
+                   "non sarcopénique"
+  ))
 # imc
-tt2$imc <- bmiph(tt2$imc,"eng")
+tt2$imc <- bmiph(tt2$imc, "eng")
 #
 tt2$clavien.dindo.cut <- tt2$clavien.dindo %>%
   fct_recode(
@@ -183,49 +207,53 @@ epiDisplay::pyramid(
 )
 ```
 
-```{r surf1, fig.cap = "Surface du psoas rapportée à la taille"}
-tt %>% 
-  ggplot() +
-  aes(x = 1, y = surface.1.taille) +
-  geom_violin(col = "skyblue1", fill = "skyblue1",alpha = 0.8) +
-  geom_boxplot(width = 0.2) +
-      labs(title = "Surface du psoas rapportée à la taille",
-         subtitle = "",
-         caption = "Surface du psoas rapportée à la taille",
-         y = "mm2/m2",
-         label = "pso1") +
-    theme_light() +
-    scale_fill_material() +
-    theme(
-      plot.title = element_text(size = 16, face = "bold"),
-      plot.subtitle = element_text(size = 12),
-      axis.title.y = element_text(size = 12),
-      legend.title = element_blank(),
-      axis.title.x = element_blank(),
-      axis.text.y = element_text(size = 12),
-      axis.text.x = element_blank(),
-      legend.position = "none"
-    )
-```
-
 ### Deux examinateurs
 
 La concordance entre les deux examinateurs n'est pas parfaite. 
 
+```{r surf1, fig.cap = "Surface du psoas rapportée à la taille"}
+tt2 %>%
+  ggplot() +
+  aes(x = examinateur, y = surface.taille, fill = examinateur) +
+  geom_violin(col = "skyblue1", alpha = 0.8) +
+  geom_boxplot(width = 0.2, fill = "white") +
+  labs(
+    title = "Surface du psoas rapportée à la taille",
+    subtitle = "",
+    caption = "Surface du psoas rapportée à la taille",
+    y = "mm2/m2",
+    label = "pso1"
+  ) +
+  theme_light() +
+  scale_color_lancet() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    legend.title = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    axis.text.x = element_text(size = 12),
+    legend.position = "none"
+  )
+```
+
+
+
 ```{r corexa, fig.cap = "Mesure de la surface du psoas par les deux examinateurs"}
 tt %>% 
   ggplot() +
-  aes(x = surface.1.taille, y = surface.2.taille) +
+  aes(x = surface.1.taille, y = surface.2.taille, col = concordance.lectures) +
   geom_point() +
   geom_abline() +
   labs(title = "Mesure de la surface du psoas par les deux examinateurs",
-       subtitle = "",
+       subtitle = "La concordance est évaluée sur la classification en deux classes de l'HAS",
        caption = "Mesure de la surface du psoas par les deux examinateurs",
        x = "Examinateur 1",
        y = "Examinateur 2",
        label = "cor1") +
   theme_light() +
-  scale_fill_material() +
+  scale_color_lancet() +
   theme(
     plot.title = element_text(size = 16, face = "bold"),
     plot.subtitle = element_text(size = 12),
@@ -233,7 +261,8 @@ tt %>%
     axis.text.x = element_text(size = 12),
     axis.title.y = element_text(size = 12),
     axis.text.y = element_text(size = 12),
-    legend.position = "none"
+    legend.title = element_blank(),
+    legend.position = "top"
   )
 ```
 
@@ -285,23 +314,23 @@ bp2 <- beaup(zz$p.value)
 ```
 Les variances des deux groupes sont trop différentes pour utiliser le test de Student. On utilise donc un test non paramétrique de Wilcoxon-Mann-Whitney.
 
-La différence entre les deux groupes n'est pas significative (eaxmianteur 1 :`r bp1`, examinateur 2 : `r bp2`). Il est probable que la petite taille de l'échantillon soit en cause.
+La différence entre les deux groupes n'est pas significative (examinateur 1 :`r bp1`, examinateur 2 : `r bp2`). Il est probable que la petite taille de l'échantillon soit en cause.
 
 ```{r gprinci1 ,fig.cap = "Durée de séjour selon la présence d'une sarcopénie -lecteur 1"}
 tt %>%
   ggplot() +
   aes(x = examinateur.1, y = duree.de.sejour.jour, fill = examinateur.1) +
   geom_violin() +
-  geom_boxplot(width = 0.2, fill = "grey") +
+  geom_boxplot(width = 0.2, fill = "white") +
   labs(
     title = "Durée de séjour selon la présence d'une sarcopénie",
-    subtitle = paste0(bp1, "(examinateur 1)"),
+    subtitle = paste0(bp1, " (examinateur 1)"),
     caption = "Durée de séjour selon la présence d'une sarcopénie",
     y = "jours",
     label = "princi1"
   ) +
   theme_light() +
-  scale_fill_material() +
+  scale_color_lancet() +
   theme(
     plot.title = element_text(size = 16, face = "bold"),
     plot.subtitle = element_text(size = 12),
@@ -316,7 +345,7 @@ tt %>%
 
 ### Régession linéaire
 
-Calcul fai pour l'examinateur 1.
+Calcul fait pour l'examinateur 1.
 
 ```{r p1reg}
 ll <-
